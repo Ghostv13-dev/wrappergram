@@ -1,113 +1,98 @@
-# wrappergram
+# Telegram-Bot — Production Build
 
-<div align="center">
+A Deno/V8-based Telegram business management, communication, and automation
+system, implementing the owner/users/groups model described in the system
+overview: publishing, editable buttons, scheduling, destination management,
+access control, and group-mention assistance.
 
-[![Bot API](https://img.shields.io/badge/Bot%20API-7.7+-blue?logo=telegram&style=flat&labelColor=000&color=3b82f6)](https://core.telegram.org/bots/api)
-[![npm](https://img.shields.io/npm/v/wrappergram?logo=npm&style=flat&labelColor=000&color=3b82f6)](https://www.npmjs.org/package/wrappergram)
-[![npm downloads](https://img.shields.io/npm/dw/wrappergram?logo=npm&style=flat&labelColor=000&color=3b82f6)](https://www.npmjs.org/package/wrappergram)
-[![JSR](https://jsr.io/badges/@gramio/wrappergram)](https://jsr.io/@gramio/wrappergram)
-[![JSR Score](https://jsr.io/badges/@gramio/wrappergram/score)](https://jsr.io/@gramio/wrappergram)
-[![bundlejs](<https://deno.bundlejs.com/badge?q=wrappergram&treeshake=[*]&text=%22const+telegram+=+new+Telegram(process.env.BOT_TOKEN+as+string);\n\ntelegram.api.sendMessage({\n++++chat_id:+617580375,\n++++text:+%22Hello!%22,\n});%22>)](https://bundlejs.com/?q=wrappergram&treeshake=%5B*%5D&text=%22const+telegram+%3D+new+Telegram%28process.env.BOT_TOKEN+as+string%29%3B%5Cn%5Cntelegram.api.sendMessage%28%7B%5Cn++++chat_id%3A+617580375%2C%5Cn++++text%3A+%5C%22Hello%21%5C%22%2C%5Cn%7D%29%3B%22)
+## Stack
 
-</div>
+- **Runtime:** Deno (webhook server via `Deno.serve`, background jobs via `Deno.cron`)
+- **Telegram framework:** [grammY](https://grammy.dev)
+- **Storage:** Deno KV (built-in, zero external dependency; swap for Postgres/etc. by reimplementing `src/db.ts` if you outgrow it)
+- **Hosting:** Deno Deploy (recommended) or any host that runs Deno with `--unstable-kv --unstable-cron`
 
-Simple and tiny code-generated **Telegram Bot API** wrapper for TypeScript/JavaScript with [file upload](https://core.telegram.org/bots/api#sending-files) support.
+## Project layout
 
-🌐 **Multi-runtime** - Works on [Node.js](https://nodejs.org/), [Bun](https://bun.sh/) and [Deno](https://deno.com/)
-
-⚙️ **Code-generated** - For example, [code-generated and auto-published Telegram Bot API types](https://github.com/gramiojs/types))
-
-🛡️ **Type-safe** - Written in TypeScript with love ❤️
-
-🤏 **Tiny** - Simple `sendMessage` call cost some [![bundlejs](https://edge.bundlejs.com/?text=import%20%7B%20Telegram%20%7D%20from%20%22wrappergram%22%3B%0A%0Aconst%20telegram%20%3D%20new%20Telegram%28process.env.BOT_TOKEN%29%3B%0A%0Atelegram.api.sendMessage%28%7B%0A%20%20%20%20chat_id%3A%20617580375%2C%0A%20%20%20%20text%3A%20%22Hello%21%22%2C%0A%7D%29%3B&badge)](https://bundlejs.com/?q=wrappergram&treeshake=%5B*%5D&text=%22const+telegram+%3D+new+Telegram%28process.env.BOT_TOKEN+as+string%29%3B%5Cn%5Cntelegram.api.sendMessage%28%7B%5Cn++++chat_id%3A+617580375%2C%5Cn++++text%3A+%5C%22Hello%21%5C%22%2C%5Cn%7D%29%3B%22) in bundle size. So it is a good choice for browser/serverless environments
-
-But if you need a more complete framework, then please look to [`GramIO`](https://gramio.dev/).
-
-### Usage
-
-```ts
-import { Telegram, getUpdates } from "wrappergram";
-
-const telegram = new Telegram(process.env.BOT_TOKEN as string);
-
-telegram.api.sendMessage({
-    chat_id: 617580375,
-    text: "Hello!",
-});
-
-for await (const update of getUpdates(telegram)) {
-    console.log(update);
-
-    if (update.message?.from) {
-        telegram.api.sendMessage({
-            chat_id: update.message.from.id,
-            text: "Hi! Thanks for the message",
-        });
-    }
-}
+```
+telegram-bot/
+├── main.ts                     # webhook server + cron entry point
+├── deno.json                   # tasks + import map
+├── .env.example                # required environment variables
+├── scripts/set_webhook.ts      # one-time webhook registration
+└── src/
+    ├── config.ts                # env var loading
+    ├── types.ts                 # domain types
+    ├── db.ts                    # Deno KV persistence layer
+    ├── bot.ts                   # command/message routing
+    ├── middleware/auth.ts       # owner-only / approved-only gates
+    └── features/
+        ├── destinations.ts      # connect/list/remove channels & groups
+        ├── publish.ts           # multi-destination publish + wizard
+        ├── buttons.ts           # update a button's URL across old posts
+        ├── scheduling.ts        # /schedule + cron-driven publication
+        ├── access.ts            # request/approve/decline access
+        ├── groupMention.ts      # respond only when @mentioned in groups
+        └── assistance.ts        # simple FAQ-style business assistance
 ```
 
-This example on bundlejs cost [![bundlejs](https://deno.bundlejs.com/badge?q=wrappergram&treeshake=[*]&share=MYewdgzgLgBFCmAbeBzATgQwLYwLwzHgHcYAVJVTLACgAc0Rh4IIA6eMAN1YCEB5UgH1SfANIBRAHIBKANwAoeQmTpsrDLQCWrCBwAmAWWYQMKeNQDe8mDZjAAFhiiDNegFwwAbAEYA7AFYADgAGAGYAgBprWwQADygPACIACSREEABCRKiAXzlFADMQNBgMIgxNWGpQSFgAV1o9J3gYEAKYMygAVUbmiGplSmxpaRgrWztwCBBkVnSUagamhHzom012xd6EVixjU3gAflYChixR8YmYilUsdS0dfSMWA8s1q4mHJxd3GCXm3b7MwnM6sVxRD4fOIJGApTQZMiOMAAawgMCKJSg9haexeZmy7wmeQURPkOSAA)](https://bundlejs.com/?q=wrappergram&treeshake=%5B*%5D&share=MYewdgzgLgBFCmAbeBzATgQwLYwLwzHgHcYAVJVTLACgAc0Rh4IIA6eMAN1YCEB5UgH1SfANIBRAHIBKANwAoeQmTpsrDLQCWrCBwAmAWWYQMKeNQDe8mDZjAAFhiiDNegFwwAbAEYA7AFYADgAGAGYAgBprWwQADygPACIACSREEABCRKiAXzlFADMQNBgMIgxNWGpQSFgAV1o9J3gYEAKYMygAVUbmiGplSmxpaRgrWztwCBBkVnSUagamhHzom012xd6EVixjU3gAflYChixR8YmYilUsdS0dfSMWA8s1q4mHJxd3GCXm3b7MwnM6sVxRD4fOIJGApTQZMiOMAAawgMCKJSg9haexeZmy7wmeQURPkOSAA)
+## Setup
 
-> [!IMPORTANT]
-> Use `getUpdates` only **once** in your code otherwise it will cause double calls to [getUpdates](https://core.telegram.org/bots/api#getupdates)
+1. **Create the bot** with [@BotFather](https://t.me/BotFather) and copy the token.
+2. **Get your Telegram user id** from [@userinfobot](https://t.me/userinfobot) — this becomes `OWNER_ID`.
+3. Copy `.env.example` to `.env` and fill in `BOT_TOKEN`, `OWNER_ID`, a random `WEBHOOK_SECRET`, and `PUBLIC_URL` (set after your first deploy).
+4. Install the [Deno CLI](https://deno.com) if running locally.
 
-### Call api
+## Local development (polling is simplest locally, but this build uses webhooks)
 
-You can send requests to Telegram Bot API Methods via `telegram.api` with full type-safety!
+For local testing, the quickest path is a tunnel (e.g. `deno task dev` behind `ngrok http 8000`), setting `PUBLIC_URL` to the tunnel's HTTPS URL, then running:
 
-```ts
-const response = await telegram.api.sendMessage({
-    chat_id: "@gramio_forum",
-    text: "Hello, world!",
-});
-
-if (!response.ok) console.error("Something went wrong");
-else console.log(`New message id is ${response.result.message_id}`);
+```
+deno task setwebhook
+deno task dev
 ```
 
-### Send keyboards
+## Deploying to Deno Deploy
 
-For keyboards you need to install [`@gramio/keyboard`](https://www.npmjs.com/package/@gramio/keyboards) library and just use it!
+1. Push this project to a GitHub repo.
+2. Create a new Deno Deploy project linked to the repo, entry point `main.ts`.
+3. Add the environment variables from `.env.example` in the Deno Deploy dashboard.
+4. Set `PUBLIC_URL` to your `*.deno.dev` URL, redeploy, then run `deno task setwebhook` locally (pointing at the same env vars) to register the webhook.
 
-```ts
-import { Keyboard } from "@gramio/keyboards";
+## Using the bot
 
-// telegram init
-telegram.api.sendMessage({
-    chat_id: "@gramio_forum",
-    text: "Hello, world!",
-    reply_markup: new InlineKeyboard().url(
-        "GitHub",
-        "https://github.com/gramiojs/wrappergram"
-    ),
-});
-```
+**Owner commands** (only work for the Telegram account matching `OWNER_ID`):
 
-This example cost - [![bundlejs](<https://deno.bundlejs.com/badge?q=wrappergram,@gramio/keyboards&treeshake=[*],[*]&text=%22const+telegram+=+new+Telegram(process.env.BOT_TOKEN);\n\ntelegram.api.sendMessage({\n++chat_id:+617580375,\n++text:+%22Hello!%22,\n++reply_markup:+new+InlineKeyboard().url(%22GitHub%22,+%22https://github.com/gramiojs/wrappergram%22)\n});%22>)](https://bundlejs.com/?q=wrappergram%2C%40gramio%2Fkeyboards&treeshake=%5B*%5D%2C%5B*%5D&text=%22const+telegram+%3D+new+Telegram%28process.env.BOT_TOKEN%29%3B%5Cn%5Cntelegram.api.sendMessage%28%7B%5Cn++chat_id%3A+617580375%2C%5Cn++text%3A+%5C%22Hello%21%5C%22%2C%5Cn++reply_markup%3A+new+InlineKeyboard%28%29.url%28%5C%22GitHub%5C%22%2C+%5C%22https%3A%2F%2Fgithub.com%2Fgramiojs%2Fwrappergram%5C%22%29%5Cn%7D%29%3B%22)
+| Command | Purpose |
+|---|---|
+| `/adddestination <label>` | Run inside a channel/group to connect it |
+| `/listdestinations` | List connected destinations and their ids |
+| `/removedestination <id>` | Disconnect a destination |
+| `/publish` | Start the guided publish flow (text → buttons → destinations) |
+| `/schedule <when> \| <dest ids> \| <text>` | Schedule a post, e.g. `/schedule 2026-09-10T10:00 \| main-channel,promo \| Big sale tomorrow!` |
+| `/changebutton <buttonId> <newUrl>` | Update a button's destination across every post that used it |
+| `/requests` | Review and approve/decline pending access requests |
 
-[Read more here](https://gramio.dev/keyboards/overview)
+**User commands:**
 
-### Send files
+| Command | Purpose |
+|---|---|
+| `/start` | Greeting and basic guidance |
+| `/requestaccess` | Ask the owner for approval to use gated features |
+| plain text | Answered by the FAQ-style business assistance handler |
 
-[`@gramio/files`](https://gramio.dev/files/overview) already used under the hood so you don't need to install it
+**Groups:** the bot only responds when explicitly mentioned, e.g. `@YourBot price of Product A?`.
 
-```ts
-import { MediaUpload } from "wrappergram";
+## Extending
 
-telegram.api.sendPhoto({
-    chat_id: "@gramio_forum",
-    text: "Hello, world!",
-    photo: MediaUpload.path("./cute-cat.png"),
-});
+- **Business assistance:** `src/features/assistance.ts` has a small keyword-matched FAQ table — swap the `answerBusinessQuestion` function for an LLM call or CMS lookup as needed.
+- **Gated features for approved users:** wrap any handler with the `approvedOnly` middleware from `src/middleware/auth.ts`.
+- **Storage:** all persistence goes through `src/db.ts`; replace its internals to move off Deno KV without touching feature code.
 
-telegram.api.sendDocument({
-    chat_id: "@gramio_forum",
-    text: "Hello, world!",
-    photo: Bun.file("README.md"), // you can use File instance to upload files
-});
-```
+## Data retention
 
-This example cost - [![bundlejs](<https://deno.bundlejs.com/badge?q=wrappergram&text=%22const+telegram+=+new+Telegram(process.env.BOT_TOKEN);+\n\ntelegram.api.sendPhoto({+\n++chat_id:+%22@gramio_forum%22,+\n++text:+%22Hello,+world!%22,+\n++photo:+MediaUpload.path(%22./cute-cat.png%22),+\n});%22>)](https://bundlejs.com/?q=wrappergram&treeshake=%5B*%5D&text=%22const+telegram+%3D+new+Telegram%28process.env.BOT_TOKEN%29%3B+%5Cn%5Cntelegram.api.sendPhoto%28%7B+%5Cn++chat_id%3A+%5C%22%40gramio_forum%5C%22%2C+%5Cn++text%3A+%5C%22Hello%2C+world%21%5C%22%2C+%5Cn++photo%3A+MediaUpload.path%28%5C%22.%2Fcute-cat.png%5C%22%29%2C+%5Cn%7D%29%3B%22)
-
-[Read more here](https://gramio.dev/files/overview)
+Following the privacy principle in the system overview, only functionally
+necessary data is stored permanently (destinations, published posts + button
+index, schedules, access decisions). In-progress conversation state (the
+publish wizard) is stored with a 30-minute TTL and expires automatically if
+abandoned.
